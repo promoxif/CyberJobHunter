@@ -1,11 +1,14 @@
-import requests
+import os
 
-respuesta = requests.get("https://httpbin.org/get")
+from dotenv import load_dotenv
+from tavily import TavilyClient
 
-print ("Codigo:",respuesta.status_code)
+load_dotenv()
 
-datos = respuesta.json()
+api_key = os.getenv("TAIVILY_API_KEY")
 
-print("URL:",datos["url"])
-print("IP:",datos["origin"])
-print("User-Agent:",datos["headers"]["User-Agent"])
+cliente = TavilyClient(api_key=api_key)
+
+resultado = cliente.search("Cybersecurity intern Barcelona")
+
+print(resultado)

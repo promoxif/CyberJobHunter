@@ -12,3 +12,9 @@ cliente = TavilyClient(api_key=api_key)
 resultado = cliente.search("Cybersecurity intern Barcelona")
 
 print(resultado)
+
+for oferta in resultado ["results"]:
+    print(oferta["title"])
+    print(oferta["content"])
+    print(oferta["url"])
+    print()

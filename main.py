@@ -5,15 +5,40 @@ from dotenv import load_dotenv
 from tavily import TavilyClient
 
 especializaciones = {
-    "cybersecurity": 3,
-    "cyber security": 3,
-    "information security": 3,
-    "network security": 3,
-    "security analyst": 3,
-    "security intern": 3,
-    "soc": 2,
-    "vulnerability": 2,
-    "application security": 3
+    "cybersecurity": {
+        "palabras": ["cybersecurity", "cyber security"],
+        "puntos": 3
+    },
+
+    "information security": {
+        "palabras": ["information security"],
+        "puntos": 3
+    },
+
+    "network security": {
+        "palabras": ["network security"],
+        "puntos": 3
+    },
+
+    "security analyst": {
+        "palabras": ["security analyst"],
+        "puntos": 3
+    },
+
+    "application security": {
+        "palabras": ["application security"],
+        "puntos": 3
+    },
+
+    "vulnerability": {
+        "palabras": ["vulnerability"],
+        "puntos": 2
+    },
+
+    "soc": {
+        "palabras": ["soc"],
+        "puntos": 2
+    }
 }
 
 ubicaciones = {
@@ -38,6 +63,7 @@ tipos_trabajo = {
     "intern": 3,
     "internship": 3,
     "trainee": 2,
+    "traineeship": 2,
     "prácticas": 3,
     "practicas": 3,
     "becario": 3,
@@ -47,28 +73,38 @@ tipos_trabajo = {
 def puntuacion_localidad(texto):
     puntos = 0
     for ciudad, puntuacion in ubicaciones.items():
-        if re.search(r"\b" + re.escape(ciudad) + r"\b", texto):
-            print("Ciudad encontrada:", ciudad, "+", puntuacion)
+        if re.search(r"(?<!\w)" + re.escape(ciudad) + r"(?!\w)", texto):
+            print("Ciudad encontrada:", ciudad, "+", puntuacion)            
             puntos = max(puntos, puntuacion)
             
+    print("Puntos localidad:", puntos)
     return puntos
 
 def puntuacion_especializacion(texto):
     puntos = 0
-    for especializacion, puntuacion in especializaciones.items():
-        if re.search(r"\b" + re.escape(especializacion) + r"\b", texto):
-            print("Especialización encontrada:", especializacion, "+", puntuacion)
-            puntos += puntuacion
 
+    for especializacion, datos in especializaciones.items():
+
+        for palabra in datos["palabras"]:
+
+            patron = r"(?<!\w)" + re.escape(palabra) + r"(?!\w)"
+
+            if re.search(patron, texto):
+                print("Especialización encontrada:", especializacion, "+", datos["puntos"])
+                puntos += datos["puntos"]
+                break
+
+    print("Puntos especialización:", puntos)
     return puntos
 
 def puntuacion_tipo_trabajo(texto):
     puntos = 0
     for tipo, puntuacion in tipos_trabajo.items():
-        if re.search(r"\b" + re.escape(tipo) + r"\b", texto):
+        if re.search(r"(?<!\w)" + re.escape(tipo) + r"(?!\w)", texto):
             print("Trabajo encontrado:", tipo, "+", puntuacion)
             puntos = max(puntos,puntuacion)
             
+    print("Puntos tipo trabajo:", puntos)
     return puntos
 
 def calculo_puntuacion(texto):
@@ -99,17 +135,10 @@ print("Numero de ofertas encontradas:", len(lista_ofertas))
 
 for oferta in lista_ofertas:
     texto_analisis = oferta["titulo"] + " " + oferta["descripcion"]
-    
-    puntos_localidad = puntuacion_localidad(texto_analisis.lower())
-    puntos_especializacion = puntuacion_especializacion(texto_analisis.lower())
-    puntos_tipo_trabajo = puntuacion_tipo_trabajo(texto_analisis.lower())
 
-    puntuacion_total = puntos_localidad + puntos_especializacion + puntos_tipo_trabajo
+    puntuacion_total = calculo_puntuacion(texto_analisis)
 
     print("Titulo:", oferta["titulo"])
     print("URL:", oferta["url"])
-    print("Puntos localidad:", puntos_localidad)
-    print("Puntos especializacion:", puntos_especializacion)
-    print("Puntos tipo trabajo:", puntos_tipo_trabajo)
     print("Puntuacion total:", puntuacion_total)
     print()

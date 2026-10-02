@@ -3,34 +3,77 @@ import os
 from dotenv import load_dotenv
 from tavily import TavilyClient
 
-palabras_ciberseguridad = [
-    "cybersecurity",
-    "cyber security",
-    "information security",
-    "network security",
-    "security analyst",
-    "security intern",
-    "soc",
-    "vulnerability",
-    "application security"
-]
+especializaciones = {
+    "cybersecurity": 3,
+    "cyber security": 3,
+    "information security": 3,
+    "network security": 3,
+    "security analyst": 3,
+    "security intern": 3,
+    "soc": 2,
+    "vulnerability": 2,
+    "application security": 3
+}
 
-palabras_ubicacion = [
-    "barcelona",
-    "mataró",
-    "mataro",
-    "badalona"
-]
+ubicaciones = {
+    "barcelona": 3,
+    "mataró": 5,
+    "mataro": 5,
+    "badalona": 4,
+    "vilassar":3,
+    "cabrera":3,
+    "premia":3,
+    "masnou":3,
+    "montgat":3,
+    "sant adrià":2,
+    "sant andreu":2,
+    "llavaneres":3,
+    "caldes":3,
+    "arenys":2,
+}
 
-palabras_practicas = [
-    "intern",
-    "internship",
-    "trainee",
-    "prácticas",
-    "practicas",
-    "becario",
-    "student"
-]
+
+tipos_trabajo = {
+    "intern": 3,
+    "internship": 3,
+    "trainee": 2,
+    "prácticas": 3,
+    "practicas": 3,
+    "becario": 3,
+    "student": 2
+}
+
+def puntuacion_localidad(texto):
+    puntos = 0
+    for ciudad, puntuacion in ubicaciones.items():
+        if ciudad in texto:
+            print("Ciudad encontrada:", ciudad, "+", puntuacion)
+            puntos = max(puntos, puntuacion)
+            
+    return puntos
+
+def puntuacion_especializacion(texto):
+    puntos = 0
+    for especializacion, puntuacion in especializaciones.items():
+        if especializacion in texto:
+            print("Especialización encontrada:", especializacion, "+", puntuacion)
+            puntos += puntuacion
+            
+    return puntos
+
+def puntuacion_tipo_trabajo(texto):
+    puntos = 0
+    for tipo, puntuacion in tipos_trabajo.items():
+        if tipo in texto:
+            print("Trabajo encontrado:", tipo, "+", puntuacion)
+            puntos = max(puntos,puntuacion)
+            
+    return puntos
+
+def calculo_puntuacion(texto):
+    texto = texto.lower()
+    return puntuacion_localidad(texto) + puntuacion_especializacion(texto) + puntuacion_tipo_trabajo(texto)
+   
 
 load_dotenv()
 
@@ -54,15 +97,19 @@ for oferta in resultado["results"]:
 print("Numero de ofertas encontradas:", len(lista_ofertas))
 
 for oferta in lista_ofertas:
-    texto_analisis = oferta["titulo"].lower() + " " + oferta["descripcion"].lower()
+    texto_analisis = oferta["titulo"] + " " + oferta["descripcion"]
     
-    es_ciberseguridad = any(palabra in texto_analisis for palabra in palabras_ciberseguridad)
-    es_ubicacion = any(palabra in texto_analisis for palabra in palabras_ubicacion)
-    es_practicas = any(palabra in texto_analisis for palabra in palabras_practicas)
+    puntos_localidad = puntuacion_localidad(texto_analisis.lower())
+    puntos_especializacion = puntuacion_especializacion(texto_analisis.lower())
+    puntos_tipo_trabajo = puntuacion_tipo_trabajo(texto_analisis.lower())
 
-    if es_ciberseguridad and es_ubicacion and es_practicas:
-        print("Titulo:", oferta["titulo"])
-        print("URL:", oferta["url"])
-        print()
+    puntuacion_total = puntos_localidad + puntos_especializacion + puntos_tipo_trabajo
 
+    print("Titulo:", oferta["titulo"])
+    print("URL:", oferta["url"])
+    print("Puntos localidad:", puntos_localidad)
+    print("Puntos especializacion:", puntos_especializacion)
+    print("Puntos tipo trabajo:", puntos_tipo_trabajo)
+    print("Puntuacion total:", puntuacion_total)
+    print()
 

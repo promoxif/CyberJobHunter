@@ -1,4 +1,5 @@
 import os
+import re
 
 from dotenv import load_dotenv
 from tavily import TavilyClient
@@ -46,7 +47,7 @@ tipos_trabajo = {
 def puntuacion_localidad(texto):
     puntos = 0
     for ciudad, puntuacion in ubicaciones.items():
-        if ciudad in texto:
+        if re.search(r"\b" + re.escape(ciudad) + r"\b", texto):
             print("Ciudad encontrada:", ciudad, "+", puntuacion)
             puntos = max(puntos, puntuacion)
             
@@ -55,16 +56,16 @@ def puntuacion_localidad(texto):
 def puntuacion_especializacion(texto):
     puntos = 0
     for especializacion, puntuacion in especializaciones.items():
-        if especializacion in texto:
+        if re.search(r"\b" + re.escape(especializacion) + r"\b", texto):
             print("Especialización encontrada:", especializacion, "+", puntuacion)
             puntos += puntuacion
-            
+
     return puntos
 
 def puntuacion_tipo_trabajo(texto):
     puntos = 0
     for tipo, puntuacion in tipos_trabajo.items():
-        if tipo in texto:
+        if re.search(r"\b" + re.escape(tipo) + r"\b", texto):
             print("Trabajo encontrado:", tipo, "+", puntuacion)
             puntos = max(puntos,puntuacion)
             
@@ -112,4 +113,3 @@ for oferta in lista_ofertas:
     print("Puntos tipo trabajo:", puntos_tipo_trabajo)
     print("Puntuacion total:", puntuacion_total)
     print()
-

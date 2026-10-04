@@ -177,7 +177,7 @@ api_key = os.getenv("TAIVILY_API_KEY")
 
 cliente = TavilyClient(api_key=api_key)
 
-resultado = cliente.search("Cybersecurity intern Barcelona")
+resultado = cliente.search("Cybersecurity intern Barcelona", max_results=20)
 
 lista_ofertas = []
 
@@ -210,9 +210,12 @@ lista_ofertas.sort(
     )
 )
 
+print("====================================")
 for oferta in lista_ofertas:
-    print("Titulo:", oferta["titulo"])
+    print(oferta["titulo"])
+    print()
     print("Puntuacion:", oferta["puntuacion_relevancia"])
     print("Prioridad:", oferta["prioridad"])
     print("URL:", oferta["url"])
+    print("====================================")
     print()

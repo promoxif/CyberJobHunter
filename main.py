@@ -101,6 +101,12 @@ indicadores_agregador = [
     "jobs, employment",
 ]
 
+orden_prioridad = {
+    "alta": 3,
+    "media": 2,
+    "baja": 1
+}
+
 def puntuacion_localidad(texto):
     puntos = 0
     for ciudad, puntuacion in ubicaciones.items():
@@ -142,8 +148,7 @@ def calculo_puntuacion(texto):
     texto = texto.lower()
     return puntuacion_localidad(texto) + puntuacion_especializacion(texto) + puntuacion_tipo_trabajo(texto)
 
-def puntuacio_oferta(texto):
-    texto = texto.lower()   
+def calcular_prioridad(texto):
     puntos = 0
     positivas_encontradas = []
     negativas_encontradas = []
@@ -164,11 +169,18 @@ def puntuacio_oferta(texto):
 
     if re.search(r"\d+\s+(jobs|internships|startups)", texto):
         puntos -= 5
-
-    print("Positivas:", positivas_encontradas)
-    print("Negativas:", negativas_encontradas)
     return puntos
-   
+
+def obtener_prioridad(texto):
+    texto = texto.lower()
+    puntuacion_oferta = calcular_prioridad(texto)
+
+    if puntuacion_oferta >= 8:
+        return "alta"
+    elif puntuacion_oferta >= 3:
+        return "media"
+    else:
+        return "baja"
 
 load_dotenv()
 
@@ -193,11 +205,25 @@ print("Numero de ofertas encontradas:", len(lista_ofertas))
 
 for oferta in lista_ofertas:
     texto_analisis = oferta["titulo"] + " " + oferta["descripcion"]
-    puntuacion_oferta = puntuacio_oferta(texto_analisis)
+    prioridad_oferta = obtener_prioridad(texto_analisis)
     puntuacion_total = calculo_puntuacion(texto_analisis)
 
+    oferta["puntuacion_relevancia"] = puntuacion_total
+    oferta["prioridad"] = prioridad_oferta
+
+    
+
+lista_ofertas.sort(
+    key=lambda oferta: (
+        -oferta["puntuacion_relevancia"],
+        -orden_prioridad[oferta["prioridad"]],
+        oferta["titulo"].lower()
+    )
+)
+
+for oferta in lista_ofertas:
     print("Titulo:", oferta["titulo"])
+    print("Puntuacion:", oferta["puntuacion_relevancia"])
+    print("Prioridad:", oferta["prioridad"])
     print("URL:", oferta["url"])
-    print("Puntuacion total:", puntuacion_total)
-    print("Puntuacion oferta:", puntuacion_oferta)
     print()

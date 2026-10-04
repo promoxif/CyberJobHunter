@@ -70,6 +70,37 @@ tipos_trabajo = {
     "student": 2
 }
 
+potencial_oferta_positivo = {
+    "job": 1,
+    "position": 2,
+    "role": 2,
+    "vacancy": 3,
+    "opening": 3,
+    "hiring": 3,
+    "intern": 1,
+    "internship": 2,
+    "prácticas": 2,
+    "becario": 2,
+    "trainee": 1
+}
+
+potencial_oferta_negativo = {
+    "course": -3,
+    "market trends": -5,
+    "list of": -4,
+    "jobs in": -5,
+    "jobs near": -5,
+    "search results": -5
+}
+
+indicadores_agregador = [
+    "jobs in",
+    "jobs near",
+    "search results",
+    "list of",
+    "jobs, employment",
+]
+
 def puntuacion_localidad(texto):
     puntos = 0
     for ciudad, puntuacion in ubicaciones.items():
@@ -110,6 +141,33 @@ def puntuacion_tipo_trabajo(texto):
 def calculo_puntuacion(texto):
     texto = texto.lower()
     return puntuacion_localidad(texto) + puntuacion_especializacion(texto) + puntuacion_tipo_trabajo(texto)
+
+def puntuacio_oferta(texto):
+    texto = texto.lower()   
+    puntos = 0
+    positivas_encontradas = []
+    negativas_encontradas = []
+
+    for palabra,puntuacion in potencial_oferta_positivo.items():
+        if palabra in texto:
+            positivas_encontradas.append(palabra)
+            puntos += puntuacion
+
+    for palabra,puntuacion in potencial_oferta_negativo.items():
+        if palabra in texto:
+            negativas_encontradas.append(palabra)
+            puntos -= puntuacion
+
+    for indicador in indicadores_agregador:
+        if indicador in texto:
+            puntos -= 5
+
+    if re.search(r"\d+\s+(jobs|internships|startups)", texto):
+        puntos -= 5
+
+    print("Positivas:", positivas_encontradas)
+    print("Negativas:", negativas_encontradas)
+    return puntos
    
 
 load_dotenv()
@@ -135,10 +193,11 @@ print("Numero de ofertas encontradas:", len(lista_ofertas))
 
 for oferta in lista_ofertas:
     texto_analisis = oferta["titulo"] + " " + oferta["descripcion"]
-
+    puntuacion_oferta = puntuacio_oferta(texto_analisis)
     puntuacion_total = calculo_puntuacion(texto_analisis)
 
     print("Titulo:", oferta["titulo"])
     print("URL:", oferta["url"])
     print("Puntuacion total:", puntuacion_total)
+    print("Puntuacion oferta:", puntuacion_oferta)
     print()

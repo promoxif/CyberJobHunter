@@ -110,38 +110,27 @@ orden_prioridad = {
 def puntuacion_localidad(texto):
     puntos = 0
     for ciudad, puntuacion in ubicaciones.items():
-        if re.search(r"(?<!\w)" + re.escape(ciudad) + r"(?!\w)", texto):
-            print("Ciudad encontrada:", ciudad, "+", puntuacion)            
+        if re.search(r"(?<!\w)" + re.escape(ciudad) + r"(?!\w)", texto):          
             puntos = max(puntos, puntuacion)
-            
-    print("Puntos localidad:", puntos)
     return puntos
 
 def puntuacion_especializacion(texto):
     puntos = 0
 
     for especializacion, datos in especializaciones.items():
-
         for palabra in datos["palabras"]:
-
             patron = r"(?<!\w)" + re.escape(palabra) + r"(?!\w)"
-
             if re.search(patron, texto):
-                print("Especialización encontrada:", especializacion, "+", datos["puntos"])
                 puntos += datos["puntos"]
                 break
-
-    print("Puntos especialización:", puntos)
     return puntos
 
 def puntuacion_tipo_trabajo(texto):
     puntos = 0
     for tipo, puntuacion in tipos_trabajo.items():
         if re.search(r"(?<!\w)" + re.escape(tipo) + r"(?!\w)", texto):
-            print("Trabajo encontrado:", tipo, "+", puntuacion)
             puntos = max(puntos,puntuacion)
             
-    print("Puntos tipo trabajo:", puntos)
     return puntos
 
 def calculo_puntuacion(texto):

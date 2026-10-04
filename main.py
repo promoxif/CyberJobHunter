@@ -6,37 +6,37 @@ from tavily import TavilyClient
 
 especializaciones = {
     "cybersecurity": {
-        "palabras": ["cybersecurity", "cyber security"],
+        "palabras": ["cybersecurity", "cyber security","ciberseguridad"],
         "puntos": 3
     },
 
     "information security": {
-        "palabras": ["information security"],
+        "palabras": ["information security", "información de seguridad", "seguridad informática"],
         "puntos": 3
     },
 
     "network security": {
-        "palabras": ["network security"],
+        "palabras": ["network security", "seguridad de redes", "seguridad de red"],
         "puntos": 3
     },
 
     "security analyst": {
-        "palabras": ["security analyst"],
+        "palabras": ["security analyst", "analista de seguridad"],
         "puntos": 3
     },
 
     "application security": {
-        "palabras": ["application security"],
+        "palabras": ["application security", "seguridad de aplicaciones"],
         "puntos": 3
     },
 
     "vulnerability": {
-        "palabras": ["vulnerability"],
+        "palabras": ["vulnerability", "vulnerabilidad"],
         "puntos": 2
     },
 
     "soc": {
-        "palabras": ["soc"],
+        "palabras": ["soc", "centro de operaciones de seguridad"],
         "puntos": 2
     }
 }
@@ -67,7 +67,12 @@ tipos_trabajo = {
     "prácticas": 3,
     "practicas": 3,
     "becario": 3,
-    "student": 2
+    "becaria": 3,
+    "estudiante": 2,
+    "formación": 1,
+    "formacion": 1,
+    "programa de prácticas": 3,
+    "pgrama de practicas": 3,
 }
 
 potencial_oferta_positivo = {
@@ -106,6 +111,25 @@ orden_prioridad = {
     "media": 2,
     "baja": 1
 }
+
+busquedas = [
+    "prácticas de ciberseguridad Barcelona",
+    "prácticas de seguridad informática Barcelona",
+    "prácticas de seguridad de redes Barcelona",
+    "prácticas analista de seguridad Barcelona",
+    "prácticas seguridad de aplicaciones Barcelona",
+
+    "cybersecurity intern Barcelona",
+    "information security intern Barcelona",
+    "network security intern Barcelona",
+    "security analyst intern Barcelona",
+    "application security intern Barcelona"
+]
+
+busquedas_pruebas = [
+    "prácticas de ciberseguridad Barcelona",
+    "network security intern Barcelona"
+]
 
 def puntuacion_localidad(texto):
     puntos = 0
@@ -177,18 +201,23 @@ api_key = os.getenv("TAIVILY_API_KEY")
 
 cliente = TavilyClient(api_key=api_key)
 
-resultado = cliente.search("Cybersecurity intern Barcelona", max_results=20)
-
 lista_ofertas = []
+urls_obtenidas = set()
 
-for oferta in resultado["results"]:
-    oferta_normalizada ={
-        "titulo" : oferta["title"],
-        "url" : oferta["url"],
-        "descripcion" : oferta["content"],
-        "puntuacion" : oferta["score"]
-    }
-    lista_ofertas.append(oferta_normalizada)
+for busqueda in busquedas:
+    resultado = cliente.search(busquedas_pruebas,max_results=20)
+    for oferta in resultado["results"]:
+        if oferta["url"] in urls_obtenidas:
+            continue
+
+        urls_obtenidas.add(oferta["url"])
+        oferta_normalizada ={
+            "titulo" : oferta["title"],
+            "url" : oferta["url"],
+            "descripcion" : oferta["content"],
+            "puntuacion" : oferta["score"]
+        }
+        lista_ofertas.append(oferta_normalizada)
 
 print("Numero de ofertas encontradas:", len(lista_ofertas))
 

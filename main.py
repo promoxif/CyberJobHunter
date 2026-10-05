@@ -42,20 +42,22 @@ especializaciones = {
 }
 
 ubicaciones = {
-    "barcelona": 3,
-    "mataró": 5,
-    "mataro": 5,
-    "badalona": 4,
-    "vilassar":3,
-    "cabrera":3,
-    "premia":3,
-    "masnou":3,
-    "montgat":3,
-    "sant adrià":2,
-    "sant andreu":2,
-    "llavaneres":3,
-    "caldes":3,
-    "arenys":2,
+    "barcelona": 20,
+    "mataró": 25,
+    "mataro": 25,
+    "badalona": 22,
+    "vilassar": 15,
+    "cabrera": 15,
+    "premia": 15,
+    "premià": 15,
+    "masnou": 15,
+    "montgat": 15,
+    "sant adrià": 10,
+    "sant adria": 10,
+    "sant andreu": 10,
+    "llavaneres": 12,
+    "caldes": 12,
+    "arenys": 10,
 }
 
 
@@ -72,7 +74,7 @@ tipos_trabajo = {
     "formación": 1,
     "formacion": 1,
     "programa de prácticas": 3,
-    "pgrama de practicas": 3,
+    "programa de practicas": 3,
 }
 
 potencial_oferta_positivo = {
@@ -89,28 +91,47 @@ potencial_oferta_positivo = {
     "trainee": 1
 }
 
-potencial_oferta_negativo = {
-    "course": -3,
+penalizaciones_oferta = {
     "market trends": -5,
     "list of": -4,
-    "jobs in": -5,
-    "jobs near": -5,
-    "search results": -5
+    "search results": -5,
+    "senior": -5,
+    "manager": -5,
+    "director": -5,
+    "bootcamp": -5,
+    "master": -3,
+    "article": -5,
+    "artículo": -5,
+    "news": -5,
+    "noticias": -5
 }
-
-indicadores_agregador = [
-    "jobs in",
-    "jobs near",
-    "search results",
-    "list of",
-    "jobs, employment",
-]
 
 orden_prioridad = {
     "alta": 3,
     "media": 2,
     "baja": 1
 }
+
+perfil_academico = [ 
+    "student",
+    "university student",
+    "undergraduate",
+    "final year",
+    "last year",
+    "estudiante",
+    "universitario",
+    "último curso",
+    "4º curso"
+]
+
+fechas = [
+    "january 2027",
+    "enero 2027",
+    "january, 2027",
+    "enero, 2027"
+]
+    
+
 
 busquedas = [
     "prácticas de ciberseguridad Barcelona",
@@ -157,30 +178,36 @@ def puntuacion_tipo_trabajo(texto):
             
     return puntos
 
+def puntuacion_perfil_academico(texto):
+    for tipo in perfil_academico:
+        if re.search(r"(?<!\w)" + re.escape(tipo) + r"(?!\w)", texto):
+            return 2
+            
+    return 0
+
+def puntuacion_fechas(texto):
+    for tipo in fechas:
+        if re.search(r"(?<!\w)" + re.escape(tipo) + r"(?!\w)", texto):
+            return 3
+            
+    return 0
+
 def calculo_puntuacion(texto):
     texto = texto.lower()
-    return puntuacion_localidad(texto) + puntuacion_especializacion(texto) + puntuacion_tipo_trabajo(texto)
+    return puntuacion_localidad(texto) + puntuacion_especializacion(texto) + puntuacion_tipo_trabajo(texto) + puntuacion_perfil_academico(texto) + puntuacion_fechas(texto)
 
 def calcular_prioridad(texto):
     puntos = 0
-    positivas_encontradas = []
-    negativas_encontradas = []
 
     for palabra,puntuacion in potencial_oferta_positivo.items():
-        if palabra in texto:
-            positivas_encontradas.append(palabra)
+         if re.search(r"(?<!\w)" + re.escape(palabra) + r"(?!\w)", texto):
             puntos += puntuacion
 
-    for palabra,puntuacion in potencial_oferta_negativo.items():
-        if palabra in texto:
-            negativas_encontradas.append(palabra)
-            puntos -= puntuacion
+    for palabra,puntuacion in penalizaciones_oferta.items():
+        if re.search(r"(?<!\w)" + re.escape(palabra) + r"(?!\w)", texto):
+            puntos += puntuacion
 
-    for indicador in indicadores_agregador:
-        if indicador in texto:
-            puntos -= 5
-
-    if re.search(r"\d+\s+(jobs|internships|startups)", texto):
+    if re.search(r"\d+\s+(jobs|internships|startups|empleos|ofertas)", texto):
         puntos -= 5
     return puntos
 
@@ -197,15 +224,15 @@ def obtener_prioridad(texto):
 
 load_dotenv()
 
-api_key = os.getenv("TAIVILY_API_KEY")
+api_key = os.getenv("TAVILY_API_KEY")
 
 cliente = TavilyClient(api_key=api_key)
 
 lista_ofertas = []
 urls_obtenidas = set()
 
-for busqueda in busquedas:
-    resultado = cliente.search(busquedas_pruebas,max_results=20)
+for busqueda in busquedas_pruebas:
+    resultado = cliente.search(busqueda,max_results=20)
     for oferta in resultado["results"]:
         if oferta["url"] in urls_obtenidas:
             continue
@@ -233,8 +260,8 @@ for oferta in lista_ofertas:
 
 lista_ofertas.sort(
     key=lambda oferta: (
-        -oferta["puntuacion_relevancia"],
         -orden_prioridad[oferta["prioridad"]],
+        -oferta["puntuacion_relevancia"],
         oferta["titulo"].lower()
     )
 )

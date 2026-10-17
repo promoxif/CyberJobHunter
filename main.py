@@ -1,5 +1,6 @@
 import os
 import re
+import sqlite3
 
 from dotenv import load_dotenv
 from tavily import TavilyClient
@@ -222,15 +223,104 @@ def obtener_prioridad(texto):
     else:
         return "baja"
 
+def iniciar_base_de_datos():
+    conexion = sqlite3.connect("ofertas.db")
+    cursor = conexion.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ofertas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo TEXT NOT NULL,
+            url TEXT NOT NULL UNIQUE,
+            descripcion TEXT,
+            puntuacion_relevancia INTEGER,
+            prioridad TEXT,
+            fecha_detectada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            estado TEXT NOT NULL DEFAULT 'nueva'
+        )
+    """)
+
+    conexion.commit()
+    conexion.close()
+
+def guardar_ofertas_en_db(lista_ofertas):
+    conexion = sqlite3.connect("ofertas.db")
+    cursor = conexion.cursor()
+
+    nuevas = 0
+
+    for oferta in lista_ofertas:
+        try:
+            cursor.execute("""
+                INSERT INTO ofertas (titulo, url, descripcion, puntuacion_relevancia, prioridad, fecha_detectada)
+                VALUES (?, ?, ?, ?, ?, datetime('now'))""",
+                (
+                    oferta["titulo"], oferta["url"], oferta["descripcion"], oferta["puntuacion_relevancia"], oferta["prioridad"]
+                ))
+            nuevas += 1
+
+        except sqlite3.IntegrityError:
+            pass # La oferta ya existe en la base de datos, se ignora
+            
+
+    conexion.commit()
+    conexion.close()
+    return nuevas
+
+def consultar_ofertas_en_db():
+    conexion = sqlite3.connect("ofertas.db")
+    cursor = conexion.cursor()
+
+    cursor.execute("""
+                   SELECT id, titulo, url, puntuacion_relevancia, prioridad FROM ofertas
+                   WHERE estado = 'nueva'
+                   ORDER BY CASE prioridad 
+                   WHEN 'alta' THEN 3 
+                   WHEN 'media' THEN 2 
+                   WHEN 'baja' THEN 1 
+                   ELSE 0 
+                   END DESC, 
+                   puntuacion_relevancia DESC
+                   """)
+    
+    ofertas = cursor.fetchall()
+    conexion.close()
+    return ofertas
+
+def actualizar_estado_oferta(id_oferta, nuevo_estado):
+    estados_validos = ["nueva", "revisada", "descartada", "solicitada"]
+    if nuevo_estado not in estados_validos:
+        print("Estado no valido")
+        return 0
+
+    conexion = sqlite3.connect("ofertas.db")
+    cursor = conexion.cursor()
+
+    cursor.execute("""
+        UPDATE ofertas
+        SET estado = ?
+        WHERE id = ?
+    """, (nuevo_estado, id_oferta))
+
+    conexion.commit()
+    filas_actualizadas = cursor.rowcount
+    conexion.close()
+    return filas_actualizadas
+
+### main -----------------------------------------------------------------------------------------------------------------------------------------------------------
+
 load_dotenv()
 
 api_key = os.getenv("TAVILY_API_KEY")
 
 cliente = TavilyClient(api_key=api_key)
 
+iniciar_base_de_datos()
+
+
 lista_ofertas = []
 urls_obtenidas = set()
-
+'''
 for busqueda in busquedas_pruebas:
     resultado = cliente.search(busqueda,max_results=20)
     for oferta in resultado["results"]:
@@ -256,8 +346,27 @@ for oferta in lista_ofertas:
     oferta["puntuacion_relevancia"] = puntuacion_total
     oferta["prioridad"] = prioridad_oferta
 
+nuevas_ofertas = guardar_ofertas_en_db(lista_ofertas)
+print("Numero de nuevas ofertas guardadas en la base de datos:", nuevas_ofertas)
+'''
+
+lista_ofertas_db = consultar_ofertas_en_db()
+
+
+print("====================================") 
+print()
+
+for(id_oferta,titulo, url, puntuacion_relevancia, prioridad) in lista_ofertas_db:
+    print("ID:", id_oferta, "  ", titulo)
+    print("Puntuacion:", puntuacion_relevancia)
+    print("Prioridad:", prioridad.upper())
+    print("URL:", url)
+    print("====================================")
+    print()
     
 
+
+'''
 lista_ofertas.sort(
     key=lambda oferta: (
         -orden_prioridad[oferta["prioridad"]],
@@ -265,6 +374,8 @@ lista_ofertas.sort(
         oferta["titulo"].lower()
     )
 )
+
+
 
 print("====================================")
 for oferta in lista_ofertas:
@@ -275,3 +386,4 @@ for oferta in lista_ofertas:
     print("URL:", oferta["url"])
     print("====================================")
     print()
+'''

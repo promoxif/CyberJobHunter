@@ -152,6 +152,49 @@ busquedas_pruebas = [
     "prácticas de ciberseguridad Barcelona",
     "network security intern Barcelona"
 ]
+def mostrar_menu():
+    print("====================================")
+    print("Bienvenido al sistema de gestión de ofertas de trabajo")
+    print("1. Buscar nuevas ofertas")
+    print("2. Consultar ofertas nuevas")
+    print("3. Consultar candidaturas enviadas")
+    print("4. Ver estadísticas de ofertas")
+    print("5. Salir")
+    print("====================================")
+    
+    opcion = input("Ingresa el numero de la opcion: ")
+    return opcion
+
+def buscar_ofertas():
+    lista_ofertas = []
+    urls_obtenidas = set()
+    for busqueda in busquedas_pruebas:
+        resultado = cliente.search(busqueda,max_results=20)
+        for oferta in resultado["results"]:
+            if oferta["url"] in urls_obtenidas:
+                continue
+
+            urls_obtenidas.add(oferta["url"])
+            oferta_normalizada ={
+                "titulo" : oferta["title"],
+                "url" : oferta["url"],
+                "descripcion" : oferta["content"],
+                "puntuacion" : oferta["score"]
+            }
+            lista_ofertas.append(oferta_normalizada)
+
+    print("Numero de ofertas encontradas:", len(lista_ofertas))
+
+    for oferta in lista_ofertas:
+        texto_analisis = oferta["titulo"] + " " + oferta["descripcion"]
+        prioridad_oferta = obtener_prioridad(texto_analisis)
+        puntuacion_total = calculo_puntuacion(texto_analisis)
+
+        oferta["puntuacion_relevancia"] = puntuacion_total
+        oferta["prioridad"] = prioridad_oferta
+
+    nuevas_ofertas = guardar_ofertas_en_db(lista_ofertas)
+    print("Numero de nuevas ofertas guardadas en la base de datos:", nuevas_ofertas)
 
 def puntuacion_localidad(texto):
     puntos = 0
@@ -236,7 +279,7 @@ def iniciar_base_de_datos():
             puntuacion_relevancia INTEGER,
             prioridad TEXT,
             fecha_detectada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            estado TEXT NOT NULL DEFAULT 'nueva'
+            estado TEXT NOT NULL DEFAULT 'nueva',
         )
     """)
 
@@ -307,6 +350,97 @@ def actualizar_estado_oferta(id_oferta, nuevo_estado):
     conexion.close()
     return filas_actualizadas
 
+def catalogar_ofertas(lista_ofertas_db):
+    print("====================================") 
+    print()
+
+    for(id_oferta,titulo, url, puntuacion_relevancia, prioridad) in lista_ofertas_db:
+        print("ID:", id_oferta, "  ", titulo)
+        print("Puntuacion:", puntuacion_relevancia)
+        print("Prioridad:", prioridad.upper())
+        print("URL:", url)
+        print()
+        print("Que quieres hacer con esta oferta?")
+        print("1. Marcar como revisada")
+        print("2. Marcar como descartada")
+        print("3. Marcar como solicitada")
+
+        seguir= False
+        while(seguir == False): 
+            opcion = input("Ingresa el numero de la opcion: ")
+
+            match opcion:
+                case "1":
+                    nuevo_estado = "revisada"
+                    seguir = True
+                case "2":
+                    nuevo_estado = "descartada"
+                    seguir = True
+                case "3":
+                    nuevo_estado = "solicitada"
+                    seguir = True
+                case _:
+                    print("Opcion incorrecta !!!!!!!!!!!!!!!!")
+                    print()
+
+        mensaje_actualizacion=actualizar_estado_oferta(id_oferta, nuevo_estado)
+        print("Se han actualizado", mensaje_actualizacion, "la oferta con id:", id_oferta, "ha cambiado al estado:", nuevo_estado)
+        print()
+        print("====================================")
+        print()
+        
+def consultar_ofertas_en_db_solicitades():
+    conexion = sqlite3.connect("ofertas.db")
+    cursor = conexion.cursor()
+    
+    cursor.execute("""
+                       SELECT id, titulo, url, puntuacion_relevancia, prioridad FROM ofertas
+                       WHERE estado = 'solicitada'
+                       ORDER BY CASE prioridad 
+                       WHEN 'alta' THEN 3 
+                       WHEN 'media' THEN 2 
+                       WHEN 'baja' THEN 1 
+                       ELSE 0 
+                       END DESC, 
+                       puntuacion_relevancia DESC
+                       """)
+        
+    ofertas = cursor.fetchall()
+    conexion.close()
+    return ofertas      
+
+def mostrar_ofertas(lista_ofertas_db):
+    print("====================================") 
+    print()
+
+    for(id_oferta,titulo, url, puntuacion_relevancia, prioridad) in lista_ofertas_db:
+        print("ID:", id_oferta, "  ", titulo)
+        print("Puntuacion:", puntuacion_relevancia)
+        print("Prioridad:", prioridad.upper())
+        print("URL:", url)
+        print()
+        print("====================================")
+        print()  
+def mostar_estadisticas():
+    conexion = sqlite3.connect("ofertas.db")
+    cursor = conexion.cursor()
+    
+    cursor.execute("""
+            SELECT estado, COUNT(*) FROM ofertas
+            GROUP BY estado
+    """)
+        
+    estadisticas = cursor.fetchall()
+    conexion.close()
+    
+    print("====================================") 
+    print()
+    print("Estadísticas de ofertas:")
+    for estado, cantidad in estadisticas:
+        print(f"Estado: {estado}, Cantidad: {cantidad}")
+        print()
+        print("====================================")
+
 ### main -----------------------------------------------------------------------------------------------------------------------------------------------------------
 
 load_dotenv()
@@ -316,74 +450,23 @@ api_key = os.getenv("TAVILY_API_KEY")
 cliente = TavilyClient(api_key=api_key)
 
 iniciar_base_de_datos()
+salir = False
 
+while(salir == False):
+    menu_opcion = mostrar_menu()
 
-lista_ofertas = []
-urls_obtenidas = set()
-'''
-for busqueda in busquedas_pruebas:
-    resultado = cliente.search(busqueda,max_results=20)
-    for oferta in resultado["results"]:
-        if oferta["url"] in urls_obtenidas:
-            continue
+    if(menu_opcion == "1"):
+        buscar_ofertas()
+    elif(menu_opcion == "2"):
+        lista_ofertas_db = consultar_ofertas_en_db()
+        catalogar_ofertas(lista_ofertas_db)
+    elif(menu_opcion == "3"):
+        lista_ofertas_db = consultar_ofertas_en_db_solicitades()
+        mostrar_ofertas(lista_ofertas_db)
+    elif(menu_opcion == "4"):
+        mostar_estadisticas()
+    elif(menu_opcion == "5"):
+        salir = True
 
-        urls_obtenidas.add(oferta["url"])
-        oferta_normalizada ={
-            "titulo" : oferta["title"],
-            "url" : oferta["url"],
-            "descripcion" : oferta["content"],
-            "puntuacion" : oferta["score"]
-        }
-        lista_ofertas.append(oferta_normalizada)
-
-print("Numero de ofertas encontradas:", len(lista_ofertas))
-
-for oferta in lista_ofertas:
-    texto_analisis = oferta["titulo"] + " " + oferta["descripcion"]
-    prioridad_oferta = obtener_prioridad(texto_analisis)
-    puntuacion_total = calculo_puntuacion(texto_analisis)
-
-    oferta["puntuacion_relevancia"] = puntuacion_total
-    oferta["prioridad"] = prioridad_oferta
-
-nuevas_ofertas = guardar_ofertas_en_db(lista_ofertas)
-print("Numero de nuevas ofertas guardadas en la base de datos:", nuevas_ofertas)
-'''
-
-lista_ofertas_db = consultar_ofertas_en_db()
-
-
-print("====================================") 
-print()
-
-for(id_oferta,titulo, url, puntuacion_relevancia, prioridad) in lista_ofertas_db:
-    print("ID:", id_oferta, "  ", titulo)
-    print("Puntuacion:", puntuacion_relevancia)
-    print("Prioridad:", prioridad.upper())
-    print("URL:", url)
-    print("====================================")
-    print()
-    
-
-
-'''
-lista_ofertas.sort(
-    key=lambda oferta: (
-        -orden_prioridad[oferta["prioridad"]],
-        -oferta["puntuacion_relevancia"],
-        oferta["titulo"].lower()
-    )
-)
-
-
-
-print("====================================")
-for oferta in lista_ofertas:
-    print(oferta["titulo"])
-    print()
-    print("Puntuacion:", oferta["puntuacion_relevancia"])
-    print("Prioridad:", oferta["prioridad"])
-    print("URL:", oferta["url"])
-    print("====================================")
-    print()
-'''
+print("Saliendo del programa...")
+exit()  

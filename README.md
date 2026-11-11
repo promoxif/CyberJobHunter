@@ -1,57 +1,70 @@
 # CyberJobHunter
 
-**CyberJobHunter** is a personal, non-commercial Python project created by a Computer Engineering student to practice Python programming, API integration, data processing, databases, and process automation.
+**CyberJobHunter** is a personal, non-commercial Python project developed by a Computer Engineering student to learn about API integration, data processing, relational databases, and workflow automation.
 
-The project helps organize the search for cybersecurity internships by retrieving job listings, estimating their relevance, and storing them for later review. It was built as a learning exercise rather than a commercial recruitment product.
+It helps me discover and organize **cybersecurity internships and junior opportunities**, mainly around **Barcelona, Mataró, and Badalona**. The goal is to make the internship search more manageable while gaining practical experience with Python and cloud services. It is a learning project, not a commercial recruitment platform.
 
 ## Features
 
-- Search for internship and entry-level opportunities using the Tavily Search API.
-- Normalize search results and avoid saving duplicate URLs.
-- Rank listings using configurable keywords, locations, and relevance rules.
-- Assign a priority level to each result.
-- Store offers in a local SQLite database.
-- Review offers and update their status (`nueva`, `revisada`, `descartada`, `solicitada`).
-- View saved offers, submitted applications, and basic statistics through a command-line menu.
+- Search for job listings using the **Tavily Search API**.
+- Normalize results into a consistent structure (title, URL, description, and scores).
+- Estimate relevance using configurable keywords for cybersecurity roles, internships, and locations.
+- Assign priority levels to listings.
+- Save results in **Supabase PostgreSQL**, avoiding duplicate URLs.
+- Review offers through a command-line interface and update their status: `nueva`, `revisada`, `descartada`, or `solicitada`.
+- Display saved applications and basic statistics.
+- Run searches without user interaction using `python main.py --auto`.
+- Execute the automated search through **GitHub Actions**, using repository secrets for credentials.
 
-> **Development status:** The current version uses SQLite and runs locally. Scheduled execution with GitHub Actions and a cloud-hosted PostgreSQL database are planned improvements, not requirements for running the current version.
+## Tech stack
 
-## Technologies
+| Technology | Purpose |
+| --- | --- |
+| Python 3.13 | Main application |
+| [Tavily](https://tavily.com/) | Job listing discovery through web search |
+| [Supabase](https://supabase.com/) | Cloud-hosted PostgreSQL database |
+| PostgreSQL | Persistent storage and duplicate prevention |
+| `psycopg` | PostgreSQL connection from Python |
+| `python-dotenv` | Local environment variable loading |
+| GitHub Actions | Manual and scheduled cloud execution |
 
-- Python 3
-- [Tavily Search API](https://tavily.com/)
-- `tavily-python` for search requests
-- `python-dotenv` for local environment variables
-- `requests` for HTTP requests where used
-- `sqlite3` (Python standard library) for local persistence
-- `re` (Python standard library) for keyword matching
+## How it works
+
+1. CyberJobHunter sends predefined search queries to Tavily.
+2. It extracts and normalizes the returned listings.
+3. A rule-based scoring system evaluates relevance and assigns priorities.
+4. Listings are inserted into PostgreSQL. Existing URLs are skipped with `ON CONFLICT (url) DO NOTHING`.
+5. The interactive CLI lets me review offers, update statuses, and check statistics.
+6. GitHub Actions can run the same search automatically, without keeping my computer turned on.
+
+> The relevance score is based on configurable rules and keywords, not a machine-learning model. Search results depend on Tavily's coverage and are not guaranteed to be current or complete.
 
 ## Getting started
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/CyberJobHunter.git
+git clone https://github.com/promoxif/CyberJobHunter.git
 cd CyberJobHunter
 ```
 
-Replace `YOUR_USERNAME` with the repository owner's GitHub username.
+### 2. Set up Python
 
-### 2. Create a virtual environment
+Python 3.13 is used for development.
 
 ```bash
 python -m venv .venv
 ```
 
-Activate it:
+Activate the environment:
 
-**Windows (PowerShell):**
+**Windows PowerShell**
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-**Linux/macOS:**
+**Linux / macOS**
 
 ```bash
 source .venv/bin/activate
@@ -60,96 +73,129 @@ source .venv/bin/activate
 ### 3. Install dependencies
 
 ```bash
-pip install tavily-python python-dotenv requests
-```
-
-If the repository includes a `requirements.txt`, you can instead use:
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure your Tavily API key
+The application uses `tavily-python`, `python-dotenv`, and `psycopg[binary]`. Other packages may also be listed in `requirements.txt`.
 
-Create a file named `.env` in the project root:
+### 4. Configure Tavily and Supabase
+
+Create your own [Tavily API key](https://app.tavily.com/) and a [Supabase](https://supabase.com/) project with a PostgreSQL database.
+
+Create a `.env` file in the project root:
 
 ```dotenv
-TAVILY_API_KEY=your_tavily_api_key_here
+TAVILY_API_KEY=your_tavily_api_key
+DATABASE_URL=your_supabase_postgresql_connection_string
 ```
 
-Create your own API key from the [Tavily dashboard](https://app.tavily.com/). The key must be read by the Python program using `python-dotenv` (or another environment-variable mechanism).
+Copy the PostgreSQL connection string from your Supabase project's connection settings. Use the appropriate connection method for your network (for example, the session pooler) and replace any password placeholder with your own database password.
 
-**Never publish your real API key or commit your `.env` file.**
+**Never commit `.env`, database passwords, or API keys to GitHub.**
 
-### 5. Configure `.gitignore`
+### 5. Create the database table
 
-Create a file named `.gitignore` in the project root and include:
+In the Supabase **SQL Editor**, run:
 
-```gitignore
-.env
-.venv/
-__pycache__/
-*.pyc
-ofertas.db
+```sql
+CREATE TABLE IF NOT EXISTS ofertas (
+    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+    titulo TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    descripcion TEXT,
+    puntuacion_relevancia INTEGER,
+    prioridad TEXT,
+    fecha_detectada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    estado TEXT NOT NULL DEFAULT 'nueva'
+);
 ```
 
-`ofertas.db` is excluded here because it contains local search data; remove that rule only if you deliberately want to version a sample database without private information. If a secret was previously committed, adding it to `.gitignore` does not erase it from Git history: revoke or rotate the exposed key.
+The application connects directly to PostgreSQL using `psycopg`. Keep the database credentials private; do not expose them in client-side code.
 
-### 6. Run the application
+### 6. Run CyberJobHunter
 
-From the project root, run the main Python file, for example:
+Start the interactive menu:
 
 ```bash
 python main.py
 ```
 
-> Check the actual entry-point filename in your copy of the project and replace `main.py` if necessary. The application presents a command-line menu for searching and managing job offers.
+Use it to search for offers, review new listings, see applications, and view statistics.
 
-## Customizing the job search
+To run one search without opening the menu:
 
-CyberJobHunter's scoring rules are intended to be adapted. To search for different types of roles or in other locations, review the configuration values in the Python source code:
+```bash
+python main.py --auto
+```
 
-| Configuration | What to change | Example |
-| --- | --- | --- |
-| Search queries (`busquedas`) | Keywords passed to Tavily | `"cloud security internship Madrid"` |
-| Test queries (`busquedas_pruebas`) | Smaller set of searches for development | One or two searches to reduce API usage |
-| Locations (`ubicaciones`) | Cities or regions and their score weights | Madrid, Valencia, remote |
-| Specialization keywords | Relevant technical skills and job titles | SOC, pentesting, cloud, Python |
-| Internship indicators | Words that identify internships or junior roles | intern, trainee, prácticas |
-| Scoring thresholds | How results receive high/medium/low priority | Adjust according to your needs |
+This mode is intended for automation and can also be tested locally.
 
-Some identifiers may differ between versions. Locate the corresponding dictionaries, lists, and scoring functions in your source code before editing them. Keep the search queries and scoring criteria aligned so that relevant opportunities are not filtered out or ranked too low.
+## GitHub Actions automation
 
-For example, someone searching for **data analyst internships** could replace cybersecurity-related keywords with `SQL`, `Power BI`, `data analysis`, and `Python`, then update the preferred locations and test the results.
+The workflow is defined in:
 
-## Project workflow
+```text
+.github/workflows/buscar_ofertas.yml
+```
 
-1. The user starts a search from the CLI.
-2. Tavily returns potential job listings.
-3. The program normalizes the results and calculates relevance and priority.
-4. New URLs are stored in SQLite; previously saved URLs are skipped.
-5. The user reviews offers, updates their status, and consults summary statistics.
+It installs Python and the project's dependencies, then runs:
 
-The scoring is heuristic and depends on the search results and configured keywords. It does not guarantee that an offer is current, suitable, or still accepting applications. Always verify the original job posting before applying.
+```bash
+python main.py --auto
+```
 
-## Planned improvements
+### Required repository secrets
 
-- Run searches automatically on a schedule using GitHub Actions.
-- Move persistent storage to a cloud-hosted PostgreSQL database.
-- Improve logging, error handling, and automated tests.
+Go to **Settings → Secrets and variables → Actions** in your GitHub repository and add:
 
-These features are part of the roadmap and may change as the project evolves.
+| Secret | Description |
+| --- | --- |
+| `TAVILY_API_KEY` | Your Tavily API key |
+| `DATABASE_URL` | Your Supabase PostgreSQL connection string |
 
-## Educational purpose and disclaimer
+The workflow reads these values as environment variables. Do not write the actual values in the workflow file.
 
-This project was developed independently for **learning and experimentation**. It is **not affiliated with Tavily, job boards, employers, or recruitment agencies**, and it has **no commercial purpose**.
+### Run it manually
 
-Users are responsible for complying with the terms of the APIs and websites they use, respecting request quotas, and protecting their own credentials. Search results may be incomplete or inaccurate.
+Go to **Actions → CyberJobHunter - Daily Search → Run workflow**.
 
-## Contributing
+The workflow also includes a scheduled trigger for recurring searches. GitHub Actions scheduled runs can be delayed, and their timing depends on the configuration in the YAML file. The first manually triggered workflow run has completed successfully.
 
-Suggestions, feedback, and educational improvements are welcome. If you adapt the project, document your changes and avoid committing API keys or personal data.
+Because listings are stored in Supabase, data remains available between GitHub Actions runs. Duplicate URLs are ignored instead of inserted again.
+
+## Project structure
+
+```text
+CyberJobHunter/
+├── .github/
+│   └── workflows/
+│       └── buscar_ofertas.yml
+├── main.py              # Search, scoring, and CLI
+├── database.py          # PostgreSQL connection
+├── requirements.txt     # Python dependencies
+├── .gitignore
+├── .env                  # Local secrets; not committed
+└── README.md
+```
+
+Additional local test files may be present during development.
+
+## Customization
+
+The search queries, location keywords, cybersecurity specializations, scoring weights, and priority rules can be adjusted in `main.py`. This makes it possible to adapt the project to different regions, roles, or internship requirements.
+
+## Security and limitations
+
+- Keep `.env` out of version control and store cloud credentials in GitHub Actions Secrets.
+- Restrict who can edit workflows, since workflows with access to secrets must be trusted.
+- Tavily usage may be subject to API quotas and costs.
+- A successful workflow run confirms execution, but the logs and Supabase table should be checked to verify how many new offers were saved.
+- The project is a CLI-based learning tool; it does not currently include a web interface or notifications.
+
+## Project status
+
+**Working prototype:** local CLI, Supabase PostgreSQL integration, automatic execution mode, and a successfully tested GitHub Actions workflow. Further improvements may include better ranking, more search sources, notifications, and additional reporting.
 
 ## License
 
-No license has been selected yet. If you want others to be legally permitted to reuse, modify, and redistribute the code, add an appropriate `LICENSE` file (for example, MIT) after reviewing its terms. A public GitHub repository does not automatically grant permission to reuse its code.
+This is a personal educational project. No open-source license is declared here; see the repository if a license is added later.

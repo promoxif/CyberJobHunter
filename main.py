@@ -1,9 +1,11 @@
 import os
 import re
 import sqlite3
+import sys
 
 from dotenv import load_dotenv
 from tavily import TavilyClient
+from database import conectar_db
 
 especializaciones = {
     "cybersecurity": {
@@ -168,7 +170,7 @@ def mostrar_menu():
 def buscar_ofertas():
     lista_ofertas = []
     urls_obtenidas = set()
-    for busqueda in busquedas_pruebas:
+    for busqueda in busquedas:
         resultado = cliente.search(busqueda,max_results=20)
         for oferta in resultado["results"]:
             if oferta["url"] in urls_obtenidas:
@@ -286,69 +288,79 @@ def iniciar_base_de_datos():
     conexion.commit()
     conexion.close()
 
+
 def guardar_ofertas_en_db(lista_ofertas):
-    conexion = sqlite3.connect("ofertas.db")
-    cursor = conexion.cursor()
+    ofertas_guardadas = 0
 
-    nuevas = 0
+    with conectar_db() as conexion:
+        with conexion.cursor() as cursor:
 
-    for oferta in lista_ofertas:
-        try:
-            cursor.execute("""
-                INSERT INTO ofertas (titulo, url, descripcion, puntuacion_relevancia, prioridad, fecha_detectada)
-                VALUES (?, ?, ?, ?, ?, datetime('now'))""",
-                (
-                    oferta["titulo"], oferta["url"], oferta["descripcion"], oferta["puntuacion_relevancia"], oferta["prioridad"]
+            for oferta in lista_ofertas:
+                cursor.execute("""
+                    INSERT INTO ofertas (
+                        titulo,
+                        url,
+                        descripcion,
+                        puntuacion_relevancia,
+                        prioridad
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (url) DO NOTHING
+                """, (
+                    oferta["titulo"],
+                    oferta["url"],
+                    oferta["descripcion"],
+                    oferta["puntuacion_relevancia"],
+                    oferta["prioridad"]
                 ))
-            nuevas += 1
 
-        except sqlite3.IntegrityError:
-            pass # La oferta ya existe en la base de datos, se ignora
-            
+                ofertas_guardadas += cursor.rowcount
 
-    conexion.commit()
-    conexion.close()
-    return nuevas
+    return ofertas_guardadas
+
 
 def consultar_ofertas_en_db():
-    conexion = sqlite3.connect("ofertas.db")
-    cursor = conexion.cursor()
+    with conectar_db() as conexion:
+        with conexion.cursor() as cursor:
+            cursor.execute("""
+                SELECT id, titulo, url,
+                       puntuacion_relevancia, prioridad
+                FROM ofertas
+                WHERE estado = 'nueva'
+                ORDER BY
+                    CASE prioridad
+                        WHEN 'alta' THEN 3
+                        WHEN 'media' THEN 2
+                        WHEN 'baja' THEN 1
+                        ELSE 0
+                    END DESC,
+                    puntuacion_relevancia DESC
+            """)
 
-    cursor.execute("""
-                   SELECT id, titulo, url, puntuacion_relevancia, prioridad FROM ofertas
-                   WHERE estado = 'nueva'
-                   ORDER BY CASE prioridad 
-                   WHEN 'alta' THEN 3 
-                   WHEN 'media' THEN 2 
-                   WHEN 'baja' THEN 1 
-                   ELSE 0 
-                   END DESC, 
-                   puntuacion_relevancia DESC
-                   """)
-    
-    ofertas = cursor.fetchall()
-    conexion.close()
-    return ofertas
+            return cursor.fetchall()
 
 def actualizar_estado_oferta(id_oferta, nuevo_estado):
-    estados_validos = ["nueva", "revisada", "descartada", "solicitada"]
+    estados_validos = [
+        "nueva",
+        "revisada",
+        "descartada",
+        "solicitada"
+    ]
+
     if nuevo_estado not in estados_validos:
-        print("Estado no valido")
+        print("Estado no valido.")
         return 0
 
-    conexion = sqlite3.connect("ofertas.db")
-    cursor = conexion.cursor()
+    with conectar_db() as conexion:
+        with conexion.cursor() as cursor:
+            cursor.execute("""
+                UPDATE ofertas
+                SET estado = %s
+                WHERE id = %s
+            """, (nuevo_estado, id_oferta))
 
-    cursor.execute("""
-        UPDATE ofertas
-        SET estado = ?
-        WHERE id = ?
-    """, (nuevo_estado, id_oferta))
+            return cursor.rowcount
 
-    conexion.commit()
-    filas_actualizadas = cursor.rowcount
-    conexion.close()
-    return filas_actualizadas
 
 def catalogar_ofertas(lista_ofertas_db):
     print("====================================") 
@@ -389,25 +401,22 @@ def catalogar_ofertas(lista_ofertas_db):
         print("====================================")
         print()
         
+
+
 def consultar_ofertas_en_db_solicitades():
-    conexion = sqlite3.connect("ofertas.db")
-    cursor = conexion.cursor()
-    
-    cursor.execute("""
-                       SELECT id, titulo, url, puntuacion_relevancia, prioridad FROM ofertas
-                       WHERE estado = 'solicitada'
-                       ORDER BY CASE prioridad 
-                       WHEN 'alta' THEN 3 
-                       WHEN 'media' THEN 2 
-                       WHEN 'baja' THEN 1 
-                       ELSE 0 
-                       END DESC, 
-                       puntuacion_relevancia DESC
-                       """)
-        
-    ofertas = cursor.fetchall()
-    conexion.close()
-    return ofertas      
+    with conectar_db() as conexion:
+        with conexion.cursor() as cursor:
+            cursor.execute("""
+                SELECT id, titulo, url,
+                       puntuacion_relevancia, prioridad
+                FROM ofertas
+                WHERE estado = 'solicitada'
+                ORDER BY puntuacion_relevancia DESC
+            """)
+
+            return cursor.fetchall()
+
+
 
 def mostrar_ofertas(lista_ofertas_db):
     print("====================================") 
@@ -421,25 +430,24 @@ def mostrar_ofertas(lista_ofertas_db):
         print()
         print("====================================")
         print()  
+
 def mostar_estadisticas():
-    conexion = sqlite3.connect("ofertas.db")
-    cursor = conexion.cursor()
-    
-    cursor.execute("""
-            SELECT estado, COUNT(*) FROM ofertas
-            GROUP BY estado
-    """)
-        
-    estadisticas = cursor.fetchall()
-    conexion.close()
-    
-    print("====================================") 
-    print()
-    print("Estadísticas de ofertas:")
+    with conectar_db() as conexion:
+        with conexion.cursor() as cursor:
+            cursor.execute("""
+                SELECT estado, COUNT(*)
+                FROM ofertas
+                GROUP BY estado
+                ORDER BY estado
+            """)
+
+            estadisticas = cursor.fetchall()
+
+    print("\n--- ESTADISTICAS DE OFERTAS ---")
+
     for estado, cantidad in estadisticas:
-        print(f"Estado: {estado}, Cantidad: {cantidad}")
-        print()
-        print("====================================")
+        print(f"{estado}: {cantidad}")
+
 
 ### main -----------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -449,24 +457,36 @@ api_key = os.getenv("TAVILY_API_KEY")
 
 cliente = TavilyClient(api_key=api_key)
 
-iniciar_base_de_datos()
-salir = False
 
-while(salir == False):
-    menu_opcion = mostrar_menu()
+if __name__ == "__main__":
 
-    if(menu_opcion == "1"):
+    if "--auto" in sys.argv:
+        print("Iniciando busqueda automatica...")
         buscar_ofertas()
-    elif(menu_opcion == "2"):
-        lista_ofertas_db = consultar_ofertas_en_db()
-        catalogar_ofertas(lista_ofertas_db)
-    elif(menu_opcion == "3"):
-        lista_ofertas_db = consultar_ofertas_en_db_solicitades()
-        mostrar_ofertas(lista_ofertas_db)
-    elif(menu_opcion == "4"):
-        mostar_estadisticas()
-    elif(menu_opcion == "5"):
-        salir = True
+        print("Busqueda automatica finalizada.")
 
-print("Saliendo del programa...")
-exit()  
+    else:
+        salir = False
+
+        while not salir:
+            menu_opcion = mostrar_menu()
+
+            if menu_opcion == "1":
+                buscar_ofertas()
+
+            elif menu_opcion == "2":
+                lista_ofertas_db = consultar_ofertas_en_db()
+                catalogar_ofertas(lista_ofertas_db)
+
+            elif menu_opcion == "3":
+                lista_ofertas_db = consultar_ofertas_en_db_solicitades()
+                mostrar_ofertas(lista_ofertas_db)
+
+            elif menu_opcion == "4":
+                mostar_estadisticas()
+
+            elif menu_opcion == "5":
+                salir = True
+
+        print("Saliendo del programa...")
+        exit(0)

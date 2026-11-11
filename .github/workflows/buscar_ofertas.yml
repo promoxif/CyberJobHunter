@@ -1,0 +1,40 @@
+
+name: CyberJobHunter - Daily Search
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "15 9 * * *"
+      timezone: "Europe/Madrid"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cyberjobhunter-search
+  cancel-in-progress: false
+
+jobs:
+  buscar-ofertas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar CyberJobHunter
+        env:
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python main.py --auto

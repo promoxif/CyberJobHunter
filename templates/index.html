@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf }}">
+  <meta name="color-scheme" content="light dark">
+  <title>Ofertas · CyberJobHunter</title>
+  <link rel="icon" href="{{ url_for('static', filename='mark.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Saltar a las ofertas</a>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="CyberJobHunter, inicio"><span class="brand-mark">c<span>j</span></span><span>CyberJobHunter<small>Tu próximo paso.</small></span></a>
+    <div class="nav-caption">ESPACIO DE TRABAJO</div>
+    <nav id="states" aria-label="Estado de las ofertas">
+      <button data-state="" class="nav-item"><span class="nav-icon" aria-hidden="true">▦</span> Todas las ofertas <span class="count" data-count="total">—</span></button>
+      <button data-state="nueva" class="nav-item active" aria-current="page"><span class="nav-icon" aria-hidden="true">◈</span> Nuevas <span class="count" data-count="nueva">—</span></button>
+      <button data-state="revisada" class="nav-item"><span class="nav-icon" aria-hidden="true">✓</span> Revisadas <span class="count" data-count="revisada">—</span></button>
+      <button data-state="solicitada" class="nav-item"><span class="nav-icon" aria-hidden="true">↗</span> Solicitadas <span class="count" data-count="solicitada">—</span></button>
+      <button data-state="descartada" class="nav-item"><span class="nav-icon" aria-hidden="true">⊖</span> Descartadas <span class="count" data-count="descartada">—</span></button>
+    </nav>
+    <div class="sidebar-bottom"><span class="connection-dot" aria-hidden="true"></span> Tu búsqueda, en un solo lugar.<small>Ciberseguridad · Prácticas y junior</small></div>
+  </aside>
+  <main id="main">
+    <header class="topbar"><span class="breadcrumb">Mi espacio <span>/</span> Ofertas</span><button id="theme" class="subtle-button" aria-label="Cambiar tema">◐ <span>Tema</span></button></header>
+    <div class="workspace">
+      <section class="heading"><div><p class="eyebrow">ENCUENTRA TU SIGUIENTE OPORTUNIDAD</p><h1 id="view-title">Ofertas nuevas<span class="title-dot">.</span></h1><p class="subtitle">Menos ruido. Más foco en lo que te interesa.</p></div><button id="refresh" class="button"><span aria-hidden="true">↻</span> Actualizar ofertas</button></section>
+      <section class="metrics" aria-label="Resumen de ofertas">
+        <div><span>Por descubrir</span><strong data-count="nueva">—</strong><small>Ofertas nuevas</small></div>
+        <div><span>Ya revisadas</span><strong data-count="revisada">—</strong><small>Un paso más cerca</small></div>
+        <div><span>En marcha</span><strong data-count="solicitada">—</strong><small>Candidaturas enviadas</small></div>
+      </section>
+      <section class="filters" aria-label="Filtrar ofertas">
+        <label class="search"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar en título y descripción</span><input id="search" type="search" maxlength="200" placeholder="Buscar por título o descripción…" autocomplete="off"></label>
+        <label><span class="sr-only">Prioridad</span><select id="priority"><option value="">Todas las prioridades</option value="alta">Prioridad alta</option><option value="media">Prioridad media</option><option value="baja">Prioridad baja</option></select></label>
+        <label><span class="sr-only">Ordenar ofertas</span><select id="sort"><option value="prioridad">Prioridad primero</option><option value="relevancia">Mayor puntuación</option><option value="recientes">Más recientes</option></select></label>
+      </section>
+      <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+      <section class="board" aria-label="Ofertas y detalle">
+        <div class="list-pane"><div class="list-heading"><h2>Tu selección</h2><span id="results" aria-live="polite">Cargando…</span></div><div id="offers" aria-busy="true"></div><footer class="pagination"><span id="page-label">Página 1</span><div><button id="previous" class="subtle-button" disabled aria-label="Página anterior">←</button><button id="next" class="subtle-button" disabled aria-label="Página siguiente">→</button></div></footer></div>
+        <section id="detail" class="detail-pane" aria-label="Detalle de la oferta" tabindex="-1"><div class="detail-placeholder"><span class="placeholder-symbol" aria-hidden="true">↗</span><h2>Una oportunidad a la vez</h2><p>Selecciona una oferta para conocer los detalles y decidir tu siguiente paso.</p><span class="placeholder-foot">TU PRÓXIMO PASO EMPIEZA AQUÍ</span></div></section>
+      </section>
+      <footer class="page-footer"><span>CyberJobHunter</span><span>Hecho para avanzar, a tu ritmo.</span></footer>
+    </div>
+  </main>
+</body>
+</html>

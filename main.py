@@ -1,11 +1,10 @@
 import os
 import re
-import sqlite3
 import sys
 
-from dotenv import load_dotenv
 from tavily import TavilyClient
-from database import conectar_db
+from database import (conectar_db, cargar_configuracion, actualizar_estado_oferta,
+                      consultar_ofertas_cli, estadisticas_ofertas)
 
 especializaciones = {
     "cybersecurity": {
@@ -168,6 +167,7 @@ def mostrar_menu():
     return opcion
 
 def buscar_ofertas():
+    cliente = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
     lista_ofertas = []
     urls_obtenidas = set()
     for busqueda in busquedas:
@@ -268,27 +268,6 @@ def obtener_prioridad(texto):
     else:
         return "baja"
 
-def iniciar_base_de_datos():
-    conexion = sqlite3.connect("ofertas.db")
-    cursor = conexion.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS ofertas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT NOT NULL,
-            url TEXT NOT NULL UNIQUE,
-            descripcion TEXT,
-            puntuacion_relevancia INTEGER,
-            prioridad TEXT,
-            fecha_detectada TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            estado TEXT NOT NULL DEFAULT 'nueva',
-        )
-    """)
-
-    conexion.commit()
-    conexion.close()
-
-
 def guardar_ofertas_en_db(lista_ofertas):
     ofertas_guardadas = 0
 
@@ -320,46 +299,7 @@ def guardar_ofertas_en_db(lista_ofertas):
 
 
 def consultar_ofertas_en_db():
-    with conectar_db() as conexion:
-        with conexion.cursor() as cursor:
-            cursor.execute("""
-                SELECT id, titulo, url,
-                       puntuacion_relevancia, prioridad
-                FROM ofertas
-                WHERE estado = 'nueva'
-                ORDER BY
-                    CASE prioridad
-                        WHEN 'alta' THEN 3
-                        WHEN 'media' THEN 2
-                        WHEN 'baja' THEN 1
-                        ELSE 0
-                    END DESC,
-                    puntuacion_relevancia DESC
-            """)
-
-            return cursor.fetchall()
-
-def actualizar_estado_oferta(id_oferta, nuevo_estado):
-    estados_validos = [
-        "nueva",
-        "revisada",
-        "descartada",
-        "solicitada"
-    ]
-
-    if nuevo_estado not in estados_validos:
-        print("Estado no valido.")
-        return 0
-
-    with conectar_db() as conexion:
-        with conexion.cursor() as cursor:
-            cursor.execute("""
-                UPDATE ofertas
-                SET estado = %s
-                WHERE id = %s
-            """, (nuevo_estado, id_oferta))
-
-            return cursor.rowcount
+    return consultar_ofertas_cli("nueva")
 
 
 def catalogar_ofertas(lista_ofertas_db):
@@ -404,18 +344,7 @@ def catalogar_ofertas(lista_ofertas_db):
 
 
 def consultar_ofertas_en_db_solicitades():
-    with conectar_db() as conexion:
-        with conexion.cursor() as cursor:
-            cursor.execute("""
-                SELECT id, titulo, url,
-                       puntuacion_relevancia, prioridad
-                FROM ofertas
-                WHERE estado = 'solicitada'
-                ORDER BY puntuacion_relevancia DESC
-            """)
-
-            return cursor.fetchall()
-
+    return consultar_ofertas_cli("solicitada")
 
 
 def mostrar_ofertas(lista_ofertas_db):
@@ -432,33 +361,15 @@ def mostrar_ofertas(lista_ofertas_db):
         print()  
 
 def mostar_estadisticas():
-    with conectar_db() as conexion:
-        with conexion.cursor() as cursor:
-            cursor.execute("""
-                SELECT estado, COUNT(*)
-                FROM ofertas
-                GROUP BY estado
-                ORDER BY estado
-            """)
-
-            estadisticas = cursor.fetchall()
-
     print("\n--- ESTADISTICAS DE OFERTAS ---")
-
-    for estado, cantidad in estadisticas:
+    for estado, cantidad in estadisticas_ofertas().items():
         print(f"{estado}: {cantidad}")
 
 
 ### main -----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-load_dotenv()
-
-api_key = os.getenv("TAVILY_API_KEY")
-
-cliente = TavilyClient(api_key=api_key)
-
-
 if __name__ == "__main__":
+    cargar_configuracion()
 
     if "--auto" in sys.argv:
         print("Iniciando busqueda automatica...")

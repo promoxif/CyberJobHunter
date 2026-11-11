@@ -1,101 +1,85 @@
 # CyberJobHunter
 
-**CyberJobHunter** is a personal, non-commercial Python project developed by a Computer Engineering student to learn about API integration, data processing, relational databases, and workflow automation.
+[English](README.md) | [Español](Readme_esp.md)
 
-It helps me discover and organize **cybersecurity internships and junior opportunities**, mainly around **Barcelona, Mataró, and Badalona**. The goal is to make the internship search more manageable while gaining practical experience with Python and cloud services. It is a learning project, not a commercial recruitment platform.
+CyberJobHunter is a personal, non-commercial learning project developed by a Computer Engineering student. It discovers and organizes cybersecurity internships and junior opportunities, mainly around Barcelona, Mataró and Badalona.
+
+The project combines a Python search tool, persistent Supabase PostgreSQL storage, a Spanish-language local web dashboard and GitHub Actions automation.
 
 ## Features
 
-- Search for job listings using the **Tavily Search API**.
-- Normalize results into a consistent structure (title, URL, description, and scores).
-- Estimate relevance using configurable keywords for cybersecurity roles, internships, and locations.
-- Assign priority levels to listings.
-- Save results in **Supabase PostgreSQL**, avoiding duplicate URLs.
-- Review offers through a command-line interface and update their status: `nueva`, `revisada`, `descartada`, or `solicitada`.
-- Display saved applications and basic statistics.
-- Run searches without user interaction using `python main.py --auto`.
-- Execute the automated search through **GitHub Actions**, using repository secrets for credentials.
+- Discover listings through the Tavily Search API using predefined queries.
+- Normalize results, score relevance using keyword rules and assign high, medium or low priority.
+- Save listings in PostgreSQL and skip duplicate URLs with `ON CONFLICT (url) DO NOTHING`.
+- Manage listings through the local dashboard or the existing interactive CLI.
+- Browse all listings or filter by status; search titles and descriptions, filter priority and sort by priority, relevance or detection date.
+- Review 25 listings per page, open a detail panel and follow the original listing link.
+- Change or restore any of the four statuses: `nueva` (new), `revisada` (reviewed), `descartada` (discarded), `solicitada` (applied).
+- View status counters and switch between light and dark themes; the browser remembers the theme.
+- Use a responsive layout with keyboard-accessible controls and a full-screen detail view on small screens.
+- Launch with a double-click on Windows, or run searches manually and through GitHub Actions.
 
-## Tech stack
+Opening a listing does not change its status. Marking it as applied does not submit an application to an employer.
+
+## Technology and architecture
 
 | Technology | Purpose |
 | --- | --- |
-| Python 3.13 | Main application |
-| [Tavily](https://tavily.com/) | Job listing discovery through web search |
-| [Supabase](https://supabase.com/) | Cloud-hosted PostgreSQL database |
-| PostgreSQL | Persistent storage and duplicate prevention |
-| `psycopg` | PostgreSQL connection from Python |
-| `python-dotenv` | Local environment variable loading |
-| GitHub Actions | Manual and scheduled cloud execution |
+| Python 3.13 | Search, scoring, CLI and local server |
+| Tavily (`tavily-python`) | Listing discovery |
+| Supabase PostgreSQL | Shared persistent storage |
+| `psycopg[binary]` | Direct PostgreSQL connection |
+| Flask | Local dashboard and HTTP API |
+| HTML, CSS and JavaScript | Interface without Node or a build step |
+| `python-dotenv` | Local configuration at application startup |
+| `unittest` | Offline automated tests |
+| `pip-audit` | Known dependency vulnerability checks |
+| GitHub Actions | Automated searches, tests and dependency auditing |
 
-## How it works
+`main.py` searches and scores listings. `database.py` provides the shared database connection, queries and status updates. `frontend.py` serves the dashboard and calls that database layer. The browser never connects directly to Supabase or receives database credentials. Tavily is initialized only when a search starts; the dashboard does not call Tavily.
 
-1. CyberJobHunter sends predefined search queries to Tavily.
-2. It extracts and normalizes the returned listings.
-3. A rule-based scoring system evaluates relevance and assigns priorities.
-4. Listings are inserted into PostgreSQL. Existing URLs are skipped with `ON CONFLICT (url) DO NOTHING`.
-5. The interactive CLI lets me review offers, update statuses, and check statistics.
-6. GitHub Actions can run the same search automatically, without keeping my computer turned on.
+Importing application modules does not load `.env`. Running the normal CLI or dashboard entry point loads the project's local configuration.
 
-> The relevance score is based on configurable rules and keywords, not a machine-learning model. Search results depend on Tavily's coverage and are not guaranteed to be current or complete.
+## Installation
 
-## Getting started
-
-### 1. Clone the repository
+### 1. Clone and create an environment
 
 ```bash
 git clone https://github.com/promoxif/CyberJobHunter.git
 cd CyberJobHunter
-```
-
-### 2. Set up Python
-
-Python 3.13 is used for development.
-
-```bash
 python -m venv .venv
 ```
 
-Activate the environment:
-
-**Windows PowerShell**
+Python 3.13 is used for development. Install dependencies on Windows:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-**Linux / macOS**
+On Linux/macOS:
 
 ```bash
-source .venv/bin/activate
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
-### 3. Install dependencies
+Direct dependency versions are pinned in `requirements.txt`; development tools are listed in `requirements-dev.txt`.
 
-```bash
-pip install -r requirements.txt
-```
+### 2. Configure credentials
 
-The application uses `tavily-python`, `python-dotenv`, and `psycopg[binary]`. Other packages may also be listed in `requirements.txt`.
-
-### 4. Configure Tavily and Supabase
-
-Create your own [Tavily API key](https://app.tavily.com/) and a [Supabase](https://supabase.com/) project with a PostgreSQL database.
-
-Create a `.env` file in the project root:
+Create your own [Tavily API key](https://app.tavily.com/) and [Supabase project](https://supabase.com/). Create a private `.env` in the project root:
 
 ```dotenv
 TAVILY_API_KEY=your_tavily_api_key
 DATABASE_URL=your_supabase_postgresql_connection_string
 ```
 
-Copy the PostgreSQL connection string from your Supabase project's connection settings. Use the appropriate connection method for your network (for example, the session pooler) and replace any password placeholder with your own database password.
+Use the PostgreSQL connection string appropriate for your network, such as the session pooler, and replace its password placeholder privately. `DATABASE_URL` is needed for the dashboard; `TAVILY_API_KEY` is used for searches. Existing environment variables take precedence over `.env` values.
 
-**Never commit `.env`, database passwords, or API keys to GitHub.**
+Never commit `.env`, passwords or API keys. Each computer needs its own private configuration.
 
-### 5. Create the database table
+### 3. Create the table for a new installation
 
-In the Supabase **SQL Editor**, run:
+Run this in the Supabase SQL Editor if the table does not already exist:
 
 ```sql
 CREATE TABLE IF NOT EXISTS ofertas (
@@ -110,92 +94,168 @@ CREATE TABLE IF NOT EXISTS ofertas (
 );
 ```
 
-The application connects directly to PostgreSQL using `psycopg`. Keep the database credentials private; do not expose them in client-side code.
+The dashboard uses this existing schema and does not require a migration. Creating the table does not by itself configure safe API exposure or database permissions; review the security section below.
 
-### 6. Run CyberJobHunter
+## Start the dashboard
 
-Start the interactive menu:
+### Windows: double-click
+
+After installation, double-click **`Iniciar CyberJobHunter.bat`**. It starts the local server and opens the browser automatically. Keep the terminal window open while using the panel; close it or press `Ctrl+C` to stop the server.
+
+For a desktop shortcut: right-click the launcher → **Show more options → Send to → Desktop (create shortcut)**. Keep the original launcher in the project directory.
+
+### Start from a terminal
+
+From the project directory on Windows:
+
+```powershell
+.\.venv\Scripts\python.exe frontend.py
+```
+
+To open the browser automatically as well:
+
+```powershell
+.\.venv\Scripts\python.exe frontend.py --open-browser
+```
+
+On Linux/macOS use `.venv/bin/python frontend.py` instead. Open **http://127.0.0.1:5000** using that exact address, rather than `localhost`.
+
+If the port is occupied, stop the other instance before starting another. If the browser opens before the server finishes starting, refresh the page.
+
+### PC and laptop
+
+Run a separate local server on each computer, with dependencies and private configuration installed on both. They share the same Supabase database and do not need to connect to one another.
+
+Use **Actualizar ofertas** to fetch changes made from another computer or by GitHub Actions. There is no automatic synchronization or offline mode. If two devices change the same listing, the last saved update wins.
+
+The dashboard initially shows new listings, ordered by priority, relevance and detection date descending. Changing filters resets pagination. Status changes update the list and counters after the server confirms the save.
+
+## CLI and search automation
+
+With the virtual environment active:
 
 ```bash
 python main.py
-```
-
-Use it to search for offers, review new listings, see applications, and view statistics.
-
-To run one search without opening the menu:
-
-```bash
 python main.py --auto
 ```
 
-This mode is intended for automation and can also be tested locally.
+The first command opens the interactive menu; the second performs one unattended search. Alternatively, use the environment's Python executable directly as in the dashboard commands above.
 
-## GitHub Actions automation
+The workflow `.github/workflows/buscar_ofertas.yml` installs dependencies and executes `python main.py --auto`. Its schedule is configured for **09:15 Europe/Madrid each day**; scheduled runs may be delayed. Manual runs are available under **Actions → CyberJobHunter - Daily Search → Run workflow**.
 
-The workflow is defined in:
+Configure these repository secrets under **Settings → Secrets and variables → Actions**:
 
-```text
-.github/workflows/buscar_ofertas.yml
-```
-
-It installs Python and the project's dependencies, then runs:
-
-```bash
-python main.py --auto
-```
-
-### Required repository secrets
-
-Go to **Settings → Secrets and variables → Actions** in your GitHub repository and add:
-
-| Secret | Description |
+| Secret | Purpose |
 | --- | --- |
-| `TAVILY_API_KEY` | Your Tavily API key |
-| `DATABASE_URL` | Your Supabase PostgreSQL connection string |
+| `TAVILY_API_KEY` | Tavily searches |
+| `DATABASE_URL` | PostgreSQL connection |
 
-The workflow reads these values as environment variables. Do not write the actual values in the workflow file.
+The workflow has read-only repository permissions, a 15-minute job timeout and concurrency control to avoid overlapping searches in the same group. Listings persist in Supabase between runs. Check workflow output to see how many new listings were saved. The dashboard only manages saved listings; it does not trigger searches.
 
-### Run it manually
+## Local HTTP API
 
-Go to **Actions → CyberJobHunter - Daily Search → Run workflow**.
+These endpoints are intended for the local dashboard, not public hosting:
 
-The workflow also includes a scheduled trigger for recurring searches. GitHub Actions scheduled runs can be delayed, and their timing depends on the configuration in the YAML file. The first manually triggered workflow run has completed successfully.
+| Method and path | Purpose |
+| --- | --- |
+| `GET /` | Dashboard and CSRF session initialization |
+| `GET /api/ofertas` | Listings and filtered total; parameters: `estado`, `prioridad`, `q`, `orden`, `pagina` |
+| `GET /api/ofertas/<id>` | Listing detail |
+| `GET /api/estadisticas` | Global status counters and total |
+| `PATCH /api/ofertas/<id>/estado` | Save exactly one field: `{"estado": "revisada"}` |
 
-Because listings are stored in Supabase, data remains available between GitHub Actions runs. Duplicate URLs are ignored instead of inserted again.
+Allowed sort values are `prioridad`, `relevancia` and `recientes`. Pages contain 25 listings. Changes require the local Origin and the session's `X-CSRF-Token`; GET requests do not modify records.
+
+## Security and limitations
+
+### Implemented controls
+
+- Server restricted to `127.0.0.1:5000`, with strict host/port validation, debug mode and interactive debugger disabled.
+- No CORS; cross-site requests are rejected and state changes require Origin validation and a CSRF token.
+- HTTP-only, SameSite Strict CSRF session cookies. Restarting the server invalidates existing sessions; reload old tabs if a change is blocked. These sessions are not authentication.
+- Parameterized SQL, permitted filter/sort/status values, rejection of extra update fields and updates limited to the `estado` column.
+- Search length limited to 200 characters, request bodies to 4 KiB and page numbers to 1–100000.
+- Database connection timeout of 10 seconds and a 10-second timeout per SQL statement.
+- Listing content rendered as text. Only validated HTTP/HTTPS links without embedded credentials are offered; original links open with `noopener noreferrer`. The server does not download their pages.
+- Local resources without analytics, external scripts, fonts or CDNs. Restrictive Content Security Policy, frame blocking, `nosniff`, `no-referrer`, restricted browser permissions and `no-store` responses.
+- Only designated static assets are served; the repository root and private files are not exposed through HTTP.
+- Credentials stay in Python. Dashboard errors do not return exception details or connection strings. HTTP access logs are disabled when launched through `frontend.py` to avoid retaining search terms.
+- `.gitignore` excludes `.env` variants, common database copies, logs and local test artifacts. It does not remove secrets already committed to Git history.
+
+### Boundaries and checks still pending
+
+There is **no login**. A person or program with access to your operating-system session can use the dashboard. These controls do not protect against malware, malicious browser extensions or a compromised device. Keep this server local; do not expose it through tunnels, proxies or a network interface.
+
+HTTP traffic to the dashboard stays on loopback. Remote PostgreSQL traffic uses TLS with `sslmode=require`; this requires encryption but does not guarantee full certificate and hostname verification by itself. Using `verify-full` requires configuring the appropriate trusted root certificate. That configuration has not been changed here.
+
+**Supabase configuration remains to be verified:** connection-role privileges, least-privilege access, Row Level Security (RLS), `anon`/`authenticated` permissions and Data API table exposure. The remote configuration has not been audited or modified as part of the dashboard implementation. A working connection does not prove these permissions are correctly restricted. See [Supabase's data security guide](https://supabase.com/docs/guides/database/secure-data).
+
+The frontend is integrated with Supabase through `database.py`; when you start it, it loads your configuration and uses the real database. Development checks used fictitious data and mocked connections without loading `.env` or writing to Supabase.
+
+Dependency checks detect known published vulnerabilities, not every possible flaw. No absolute guarantee against leaks is made. Revoke and replace any credential that is exposed.
+
+### Listing limitations
+
+Relevance is a rule-based point score, not an AI model or match percentage. Detection date is not publication date. Descriptions may be search excerpts rather than full advertisements. Company, salary and location are not stored as separate fields. Search coverage, freshness and completeness depend on Tavily; API usage may have quotas or costs.
+
+## Tests and maintenance
+
+On Windows:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m pip_audit -r requirements.txt
+```
+
+Use `.venv/bin/python` on Linux/macOS. Tests use fictitious repositories or mocked connections, without loading `.env`, calling Tavily or writing to Supabase. Coverage includes filtering, pagination, status changes, scoring and deduplication, SQL parameters, request validation, CSRF, origins, hosts, private paths, unsafe links, oversized bodies and sanitized errors.
+
+For visual QA, stop the real dashboard and run:
+
+```powershell
+.\.venv\Scripts\python.exe tests/preview_fixture.py
+```
+
+This preview uses explicitly fictitious data and does not load private configuration.
+
+`.github/workflows/seguridad.yml` runs tests and `pip-audit` on push, pull request, manual dispatch and weekly on Monday at 08:30 UTC. It uses read-only repository permissions and requires no secrets. Update dependencies deliberately and rerun tests and auditing before adopting new versions.
 
 ## Project structure
 
 ```text
 CyberJobHunter/
-├── .github/
-│   └── workflows/
-│       └── buscar_ofertas.yml
-├── main.py              # Search, scoring, and CLI
-├── database.py          # PostgreSQL connection
-├── requirements.txt     # Python dependencies
+├── .github/workflows/
+│   ├── buscar_ofertas.yml
+│   └── seguridad.yml
+├── frontend.py
+├── main.py
+├── database.py
+├── Iniciar CyberJobHunter.bat
+├── templates/
+│   └── index.html
+├── static/
+│   ├── app.css
+│   ├── app.js
+│   └── mark.svg
+├── tests/
+│   ├── test_frontend.py
+│   └── preview_fixture.py
+├── requirements.txt
+├── requirements-dev.txt
 ├── .gitignore
-├── .env                  # Local secrets; not committed
-└── README.md
+├── .env                     # Local secrets; never committed
+├── README.md
+└── Readme_esp.md
 ```
 
-Additional local test files may be present during development.
+`frontend.py` owns local HTTP security and presentation; `database.py` owns shared database operations; `main.py` retains search, scoring and CLI behavior. The launcher resolves the project directory automatically.
 
-## Customization
+## Customization and status
 
-The search queries, location keywords, cybersecurity specializations, scoring weights, and priority rules can be adjusted in `main.py`. This makes it possible to adapt the project to different regions, roles, or internship requirements.
+Adjust queries, location keywords, cybersecurity specialties, scoring weights and priority rules in `main.py`.
 
-## Security and limitations
-
-- Keep `.env` out of version control and store cloud credentials in GitHub Actions Secrets.
-- Restrict who can edit workflows, since workflows with access to secrets must be trusted.
-- Tavily usage may be subject to API quotas and costs.
-- A successful workflow run confirms execution, but the logs and Supabase table should be checked to verify how many new offers were saved.
-- The project is a CLI-based learning tool; it does not currently include a web interface or notifications.
-
-## Project status
-
-**Working prototype:** local CLI, Supabase PostgreSQL integration, automatic execution mode, and a successfully tested GitHub Actions workflow. Further improvements may include better ranking, more search sources, notifications, and additional reporting.
+Current functionality includes the local dashboard, CLI, shared PostgreSQL storage, search automation and a test/audit workflow. Notifications, additional search sources, notes, favorites and expanded application stages are not implemented. The security configuration checks listed above remain separate from these optional future enhancements.
 
 ## License
 
-This is a personal educational project. No open-source license is declared here; see the repository if a license is added later.
+This is a personal educational project. No open-source license is currently declared in this repository.
